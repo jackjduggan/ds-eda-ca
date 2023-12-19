@@ -31,6 +31,11 @@ export class EDAAppStack extends cdk.Stack {
       receiveMessageWaitTime: cdk.Duration.seconds(10),
     });
 
+    //create new DLQ
+    const deadLetterQ = new sqs.Queue(this, "deadLetterQ", {
+      receiveMessageWaitTime: cdk.Duration.seconds(10)
+    });
+
     const newImageTopic = new sns.Topic(this, "NewImageTopic", {
       displayName: "New Image topic",
     }); 
@@ -56,6 +61,13 @@ export class EDAAppStack extends cdk.Stack {
       entry: `${__dirname}/../lambdas/mailer.ts`,
     });
 
+    const rejectionMailerFn = new lambdanode.NodejsFunction(this, "rejection-mailer-function", {
+      runtime: lambda.Runtime.NODEJS_16_X,
+      memorySize: 128,
+      timeout: cdk.Duration.seconds(15),
+      entry: `${__dirname}/../lambdas/rejectionMailer.ts`,
+    });
+
     // Event triggers
 
     imagesBucket.addEventNotification(
@@ -73,6 +85,11 @@ export class EDAAppStack extends cdk.Stack {
       maxBatchingWindow: cdk.Duration.seconds(10),
     });
 
+    const rejectionMailerEventSource = new events.SqsEventSource(deadLetterQ, {
+      batchSize: 5,
+      maxBatchingWindow: cdk.Duration.seconds(10),
+    })
+
     newImageTopic.addSubscription(
       new subs.SqsSubscription(imageProcessQueue)
     );
@@ -84,6 +101,8 @@ export class EDAAppStack extends cdk.Stack {
     processImageFn.addEventSource(newImageEventSource);
 
     mailerFn.addEventSource(newImageMailEventSource);
+
+    rejectionMailerFn.addEventSource(rejectionMailerEventSource);
 
     // Permissions
 
