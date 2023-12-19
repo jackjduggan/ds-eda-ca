@@ -8,13 +8,17 @@ import * as sqs from "aws-cdk-lib/aws-sqs";
 import * as sns from "aws-cdk-lib/aws-sns";
 import * as subs from "aws-cdk-lib/aws-sns-subscriptions";
 import * as iam from "aws-cdk-lib/aws-iam";
-
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb"
 import { Construct } from "constructs";
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export class EDAAppStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+
+    const imageTable = new dynamodb.Table(this, "ImageTable", {
+      partitionKey: { name: "fileName", type: dynamodb.AttributeType.STRING },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
 
     const imagesBucket = new s3.Bucket(this, "images", {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -32,7 +36,7 @@ export class EDAAppStack extends cdk.Stack {
     });
 
     //create new DLQ
-    const deadLetterQ = new sqs.Queue(this, "deadLetterQ", {
+    const deadLetterQ = new sqs.Queue(this, "deadLetter-queue", {
       receiveMessageWaitTime: cdk.Duration.seconds(10)
     });
 
@@ -91,11 +95,27 @@ export class EDAAppStack extends cdk.Stack {
     })
 
     newImageTopic.addSubscription(
-      new subs.SqsSubscription(imageProcessQueue)
+      new subs.SqsSubscription(imageProcessQueue, {
+        filterPolicy: {
+          imageType: sns.SubscriptionFilter.stringFilter({
+            allowlist: ['.jpeg', '.png'],
+          }),
+        },
+      }),
     );
 
     newImageTopic.addSubscription(
       new subs.SqsSubscription(mailerQ)
+      );
+
+      newImageTopic.addSubscription(
+        new subs.SqsSubscription(deadLetterQ, {
+          filterPolicy: {
+            imageType: sns.SubscriptionFilter.stringFilter({
+              denylist: ['.jpeg', '.png'],
+            }),
+          },
+        }),
       );
 
     processImageFn.addEventSource(newImageEventSource);
