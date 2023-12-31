@@ -15,17 +15,20 @@ export class EDAAppStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // New image table, using file name as primary key.
-    const imageTable = new dynamodb.Table(this, "ImageTable", {
-      partitionKey: { name: "fileName", type: dynamodb.AttributeType.STRING },
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-
     const imagesBucket = new s3.Bucket(this, "images", {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
       publicReadAccess: false,
     });
+
+    // New image table, using file name as primary key.
+    const imageTable = new dynamodb.Table(this, "ImageTable", {
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST, // added billing mode as that's what I had in CA1
+      partitionKey: { name: "FileName", type: dynamodb.AttributeType.STRING },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      tableName: "ImagesT",
+    });
+    
     // Integration infrastructure
 
     const imageProcessQueue = new sqs.Queue(this, "img-created-queue", {
@@ -128,6 +131,7 @@ export class EDAAppStack extends cdk.Stack {
     // Permissions
 
     imagesBucket.grantRead(processImageFn);
+    imageTable.grantReadWriteData(processImageFn);
 
     mailerFn.addToRolePolicy(
       new iam.PolicyStatement({
