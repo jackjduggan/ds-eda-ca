@@ -31,18 +31,17 @@ export class EDAAppStack extends cdk.Stack {
     
     // Integration infrastructure
 
-    const mailerQ = new sqs.Queue(this, "mailer-queue", {
-      receiveMessageWaitTime: cdk.Duration.seconds(10),
-    });
+    // intermediate queue no longer needed.
+    // const mailerQ = new sqs.Queue(this, "mailer-queue", {
+    //   receiveMessageWaitTime: cdk.Duration.seconds(10),
+    // });
 
     //create new DLQ - untested
     const deadLetterQ = new sqs.Queue(this, "deadLetter-queue", { 
-      receiveMessageWaitTime: cdk.Duration.seconds(10)
+      //receiveMessageWaitTime: cdk.Duration.seconds(10),
+      queueName: "deadLetterQueue"
     });
-
-    const newImageTopic = new sns.Topic(this, "NewImageTopic", {
-      displayName: "New Image topic",
-    }); 
+ 
 
     const imageProcessQueue = new sqs.Queue(this, "img-created-queue", {
       receiveMessageWaitTime: cdk.Duration.seconds(10),
@@ -51,6 +50,13 @@ export class EDAAppStack extends cdk.Stack {
         maxReceiveCount: 1
       },
       retentionPeriod: cdk.Duration.seconds(60) // must be 60 seconds or more.
+    });
+
+
+    // Topics
+
+    const newImageTopic = new sns.Topic(this, "NewImageTopic", {
+      displayName: "New Image topic",
     });
 
     // Lambda functions
@@ -94,10 +100,11 @@ export class EDAAppStack extends cdk.Stack {
       maxBatchingWindow: cdk.Duration.seconds(10),
     });
 
-    const newImageMailEventSource = new events.SqsEventSource(mailerQ, {
-      batchSize: 5,
-      maxBatchingWindow: cdk.Duration.seconds(10),
-    });
+    // intermediate event source no longer needed
+    // const newImageMailEventSource = new events.SqsEventSource(mailerQ, {
+    //   batchSize: 5,
+    //   maxBatchingWindow: cdk.Duration.seconds(10),
+    // });
 
     const rejectionMailerEventSource = new events.SqsEventSource(deadLetterQ, {
       batchSize: 5,
@@ -126,9 +133,14 @@ export class EDAAppStack extends cdk.Stack {
       }),
     );
 
-    newImageTopic.addSubscription(
-      new subs.SqsSubscription(mailerQ)
-      );
+    // intermediate queue is no longer a subscriber to topic
+    // newImageTopic.addSubscription(
+    //   new subs.SqsSubscription(mailerQ)
+    //   );
+    // instead, the lambda needs to be directly subscribed to the SNS topic
+    // that can be done with the subs.LambdaSubscription(lambda_fn)
+    const lambdaSub = new subs.LambdaSubscription(mailerFn)
+    newImageTopic.addSubscription(lambdaSub);
 
     processImageFn.addEventSource(newImageEventSource);
 
