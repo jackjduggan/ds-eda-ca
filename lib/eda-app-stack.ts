@@ -71,7 +71,6 @@ export class EDAAppStack extends cdk.Stack {
       this,
       "ProcessImageFn",
       {
-        // architecture: lambda.Architecture.ARM_64,
         runtime: lambda.Runtime.NODEJS_18_X,
         entry: `${__dirname}/../lambdas/processImage.ts`,
         timeout: cdk.Duration.seconds(15),
@@ -101,9 +100,22 @@ export class EDAAppStack extends cdk.Stack {
 
     const deleteImageFn = new lambdanode.NodejsFunction(this, "DeleteImageFn",
       {
-        // architecture: lambda.Architecture.ARM_64,
         runtime: lambda.Runtime.NODEJS_18_X,
         entry: `${__dirname}/../lambdas/processDelete.ts`,
+        timeout: cdk.Duration.seconds(15),
+        memorySize: 128,
+        environment: {
+          TABLE_NAME: imageTable.tableName,
+          //TABLE_NAME: "Images",
+          REGION: 'eu-west-1',
+        },
+      }
+    );
+
+    const updateTableFn = new lambdanode.NodejsFunction(this, "UpdateTableFn",
+      {
+        runtime: lambda.Runtime.NODEJS_18_X,
+        entry: `${__dirname}/../lambdas/updateTable.ts`,
         timeout: cdk.Duration.seconds(15),
         memorySize: 128,
         environment: {
@@ -178,8 +190,10 @@ export class EDAAppStack extends cdk.Stack {
     const lambdaSubMailer = new subs.LambdaSubscription(mailerFn)
     newImageTopic.addSubscription(lambdaSubMailer);
 
-    const lambdaSubDelete = new subs.LambdaSubscription(deleteImageFn) // subscribe process delete to new topic
-    delOrDescTopic.addSubscription(lambdaSubDelete)
+    const lambdaSubDelete = new subs.LambdaSubscription(deleteImageFn); // subscribe process delete to new topic
+    const lambdaSubUpdate = new subs.LambdaSubscription(updateTableFn); // subscribe update table to new topic
+    delOrDescTopic.addSubscription(lambdaSubDelete);
+    delOrDescTopic.addSubscription(lambdaSubUpdate);
 
     processImageFn.addEventSource(newImageEventSource);
 
@@ -192,6 +206,7 @@ export class EDAAppStack extends cdk.Stack {
     imagesBucket.grantRead(processImageFn);
     imageTable.grantReadWriteData(processImageFn);
     imageTable.grantReadWriteData(deleteImageFn); // give delete function write perms
+    imageTable.grantReadWriteData(updateTableFn);
 
     // Policy roles
 
