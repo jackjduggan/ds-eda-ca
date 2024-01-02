@@ -13,6 +13,8 @@ import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 
 // Initialize dynamodb
 const ddbDocClient = createDDbDocClient();
+// Initiialize s3
+const s3Client = new S3Client();
 
 export const handler: SQSHandler = async (event) => {
   console.log("Event ", event);
@@ -20,10 +22,10 @@ export const handler: SQSHandler = async (event) => {
   for (const record of event.Records) {
 
     const recordBody = JSON.parse(record.body);
-    console.log('Raw SNS message ',JSON.stringify(recordBody))
+    console.log('Record Body ',JSON.stringify(recordBody))
 
     const recordMessage = JSON.parse(recordBody.Message);
-    console.log('S3 Event Message: ', recordMessage)
+    console.log('SNS Message: ', recordMessage)
 
     if (recordMessage.Records) {
       for (const s3Record of recordMessage.Records) {
@@ -42,15 +44,18 @@ export const handler: SQSHandler = async (event) => {
 
           // check that the image type is either jpeg or png
           const imageType = typeMatch[1].toLowerCase();
+          console.log('imageType is ', imageType)
           if (imageType != "jpeg" && imageType != "png") {
             console.log(`Unsupported image type: ${imageType}`);
             throw new Error("Unsupported image type: ${imageType}. ");
           }
 
+          console.log("successful - adding into table")
+
           const dbParams = {
-            TableName: "ImagesT",
+            TableName: "Images", // reference image table from eda-stack-app
             Item: { 
-              FileName: srcKey
+              "FileName": srcKey
             }
           }
             

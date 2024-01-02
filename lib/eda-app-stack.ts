@@ -26,7 +26,7 @@ export class EDAAppStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST, // added billing mode as that's what I had in CA1
       partitionKey: { name: "FileName", type: dynamodb.AttributeType.STRING },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      tableName: "ImagesT",
+      tableName: "Images",
     });
     
     // Integration infrastructure
@@ -70,7 +70,11 @@ export class EDAAppStack extends cdk.Stack {
         entry: `${__dirname}/../lambdas/processImage.ts`,
         timeout: cdk.Duration.seconds(15),
         memorySize: 128,
-        deadLetterQueue: deadLetterQ
+        deadLetterQueue: deadLetterQ,
+        environment: {
+          TABLE_NAME: imageTable.tableName,
+          REGION: 'eu-west-1',
+        },
       }
     );
 
@@ -113,25 +117,29 @@ export class EDAAppStack extends cdk.Stack {
 
 
     newImageTopic.addSubscription(
-      new subs.SqsSubscription(imageProcessQueue, {
-        filterPolicy: {
-          imageType: sns.SubscriptionFilter.stringFilter({
-            allowlist: ['.jpeg', '.png'],
-          }),
-        },
-      }),
+      new subs.SqsSubscription(imageProcessQueue, 
+// i removed all this and suddenly the table writing works!
+
+        // {
+        // filterPolicy: {
+        //   imageType: sns.SubscriptionFilter.stringFilter({
+        //     allowlist: ['.jpeg', '.png'],
+        //   }),
+        // },
+      // }
+      ),
     );
 
     // routes images to dlq based on file extension
-    newImageTopic.addSubscription(
-      new subs.SqsSubscription(deadLetterQ, {
-        filterPolicy: {
-          imageType: sns.SubscriptionFilter.stringFilter({
-            denylist: ['.jpeg', '.png'],
-          }),
-        },
-      }),
-    );
+    // newImageTopic.addSubscription(
+    //   new subs.SqsSubscription(deadLetterQ, {
+    //     filterPolicy: {
+    //       imageType: sns.SubscriptionFilter.stringFilter({
+    //         denylist: ['.jpeg', '.png'],
+    //       }),
+    //     },
+    //   }),
+    // );
 
     // intermediate queue is no longer a subscriber to topic
     // newImageTopic.addSubscription(
@@ -144,7 +152,7 @@ export class EDAAppStack extends cdk.Stack {
 
     processImageFn.addEventSource(newImageEventSource);
 
-    mailerFn.addEventSource(newImageMailEventSource);
+    //mailerFn.addEventSource(newImageMailEventSource);
 
     rejectionMailerFn.addEventSource(rejectionMailerEventSource);
 
