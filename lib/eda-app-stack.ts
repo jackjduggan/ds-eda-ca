@@ -39,7 +39,8 @@ export class EDAAppStack extends cdk.Stack {
     //create new DLQ - untested
     const deadLetterQ = new sqs.Queue(this, "deadLetter-queue", { 
       //receiveMessageWaitTime: cdk.Duration.seconds(10),
-      queueName: "deadLetterQueue"
+      retentionPeriod: cdk.Duration.minutes(30),
+      //queueName: "deadLetterQueue"
     });
  
 
@@ -47,9 +48,9 @@ export class EDAAppStack extends cdk.Stack {
       receiveMessageWaitTime: cdk.Duration.seconds(10),
       deadLetterQueue: {
         queue: deadLetterQ,
-        maxReceiveCount: 1
+        maxReceiveCount: 3 //?
       },
-      retentionPeriod: cdk.Duration.seconds(60) // must be 60 seconds or more.
+      //retentionPeriod: cdk.Duration.seconds(60) // must be 60 seconds or more.
     });
 
 
@@ -73,6 +74,7 @@ export class EDAAppStack extends cdk.Stack {
         deadLetterQueue: deadLetterQ,
         environment: {
           TABLE_NAME: imageTable.tableName,
+          //TABLE_NAME: "Images",
           REGION: 'eu-west-1',
         },
       }
@@ -87,7 +89,7 @@ export class EDAAppStack extends cdk.Stack {
 
     const rejectionMailerFn = new lambdanode.NodejsFunction(this, "rejection-mailer-function", {
       runtime: lambda.Runtime.NODEJS_16_X,
-      memorySize: 128,
+      memorySize: 1024, // increase memory just in case - same as mailerFn
       timeout: cdk.Duration.seconds(3),
       entry: `${__dirname}/../lambdas/rejectionMailer.ts`,
     });
@@ -160,6 +162,8 @@ export class EDAAppStack extends cdk.Stack {
 
     imagesBucket.grantRead(processImageFn);
     imageTable.grantReadWriteData(processImageFn);
+
+    // Policy roles
 
     mailerFn.addToRolePolicy(
       new iam.PolicyStatement({

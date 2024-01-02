@@ -25,8 +25,8 @@ export const handler: SQSHandler = async (event: any) => {
   console.log("Event ", event);
   for (const record of event.Records) {
     
-    const recordBody = JSON.parse(record.body);
-    const snsMessage = JSON.parse(recordBody.Message);
+    const parsedRecordMessage = JSON.parse(record.Sns.Message);
+    const snsMessage = parsedRecordMessage;
 
     if (snsMessage.Records) {
       console.log("Record body ", JSON.stringify(snsMessage));

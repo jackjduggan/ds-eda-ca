@@ -64,6 +64,8 @@ export const handler: SQSHandler = async (event) => {
           // write to table
           await ddbDocClient.send(putCommand);
         }
+      } else {
+        console.log('error: no records')
       }
     }
 };
