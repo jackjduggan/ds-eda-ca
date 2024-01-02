@@ -48,7 +48,7 @@ export class EDAAppStack extends cdk.Stack {
       receiveMessageWaitTime: cdk.Duration.seconds(10),
       deadLetterQueue: {
         queue: deadLetterQ,
-        maxReceiveCount: 3 //?
+        maxReceiveCount: 3 // not sure if this value actually matters.
       },
       //retentionPeriod: cdk.Duration.seconds(60) // must be 60 seconds or more.
     });
@@ -94,11 +94,32 @@ export class EDAAppStack extends cdk.Stack {
       entry: `${__dirname}/../lambdas/rejectionMailer.ts`,
     });
 
+    const deleteImageFn = new lambdanode.NodejsFunction(this, "DeleteImageFn",
+      {
+        // architecture: lambda.Architecture.ARM_64,
+        runtime: lambda.Runtime.NODEJS_18_X,
+        entry: `${__dirname}/../lambdas/processDelete.ts`,
+        timeout: cdk.Duration.seconds(15),
+        memorySize: 128,
+        environment: {
+          TABLE_NAME: imageTable.tableName,
+          //TABLE_NAME: "Images",
+          REGION: 'eu-west-1',
+        },
+      }
+    );
+
     // Event triggers
 
     imagesBucket.addEventNotification(
       s3.EventType.OBJECT_CREATED,
       new s3n.SnsDestination(newImageTopic)  // Changed
+    );
+
+
+    imagesBucket.addEventNotification( // delete from image event
+      s3.EventType.OBJECT_REMOVED,
+      new s3n.LambdaDestination(processImageFn)
     );
 
     const newImageEventSource = new events.SqsEventSource(imageProcessQueue, {
@@ -149,8 +170,8 @@ export class EDAAppStack extends cdk.Stack {
     //   );
     // instead, the lambda needs to be directly subscribed to the SNS topic
     // that can be done with the subs.LambdaSubscription(lambda_fn)
-    const lambdaSub = new subs.LambdaSubscription(mailerFn)
-    newImageTopic.addSubscription(lambdaSub);
+    const lambdaSubMailer = new subs.LambdaSubscription(mailerFn)
+    newImageTopic.addSubscription(lambdaSubMailer);
 
     processImageFn.addEventSource(newImageEventSource);
 
@@ -162,6 +183,7 @@ export class EDAAppStack extends cdk.Stack {
 
     imagesBucket.grantRead(processImageFn);
     imageTable.grantReadWriteData(processImageFn);
+    // imagesTable.grantReadWriteData(deleteImageFn) // will be needed once lambda functionality working.
 
     // Policy roles
 
