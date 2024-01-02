@@ -60,6 +60,11 @@ export class EDAAppStack extends cdk.Stack {
       displayName: "New Image topic",
     });
 
+    // second topic added for phase 2 - handles object deletion and description
+    const delOrDescTopic = new sns.Topic(this, "DelOrDescTopic", {
+      displayName: "Image deletion or decription topic",
+    });
+
     // Lambda functions
 
     const processImageFn = new lambdanode.NodejsFunction(
@@ -119,7 +124,7 @@ export class EDAAppStack extends cdk.Stack {
 
     imagesBucket.addEventNotification( // delete from image event
       s3.EventType.OBJECT_REMOVED,
-      new s3n.LambdaDestination(processImageFn)
+      new s3n.LambdaDestination(deleteImageFn) // i had processImage instead
     );
 
     const newImageEventSource = new events.SqsEventSource(imageProcessQueue, {
@@ -173,6 +178,9 @@ export class EDAAppStack extends cdk.Stack {
     const lambdaSubMailer = new subs.LambdaSubscription(mailerFn)
     newImageTopic.addSubscription(lambdaSubMailer);
 
+    const lambdaSubDelete = new subs.LambdaSubscription(deleteImageFn) // subscribe process delete to new topic
+    delOrDescTopic.addSubscription(lambdaSubDelete)
+
     processImageFn.addEventSource(newImageEventSource);
 
     //mailerFn.addEventSource(newImageMailEventSource);
@@ -183,7 +191,7 @@ export class EDAAppStack extends cdk.Stack {
 
     imagesBucket.grantRead(processImageFn);
     imageTable.grantReadWriteData(processImageFn);
-    // imagesTable.grantReadWriteData(deleteImageFn) // will be needed once lambda functionality working.
+    imageTable.grantReadWriteData(deleteImageFn); // give delete function write perms
 
     // Policy roles
 
