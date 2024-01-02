@@ -29,7 +29,7 @@ export class EDAAppStack extends cdk.Stack {
       tableName: "Images",
     });
     
-    // Integration infrastructure
+    // ### Integration infrastructure ###
 
     // intermediate queue no longer needed.
     // const mailerQ = new sqs.Queue(this, "mailer-queue", {
@@ -54,8 +54,7 @@ export class EDAAppStack extends cdk.Stack {
     });
 
 
-    // Topics
-
+    // ### Topics ###
     const newImageTopic = new sns.Topic(this, "NewImageTopic", {
       displayName: "New Image topic",
     });
@@ -65,8 +64,7 @@ export class EDAAppStack extends cdk.Stack {
       displayName: "Image deletion or decription topic",
     });
 
-    // Lambda functions
-
+    // ### Lambda functions ###
     const processImageFn = new lambdanode.NodejsFunction(
       this,
       "ProcessImageFn",
@@ -126,19 +124,18 @@ export class EDAAppStack extends cdk.Stack {
       }
     );
 
-    // Event triggers
-
+    // ### Event triggers ###
     imagesBucket.addEventNotification(
       s3.EventType.OBJECT_CREATED,
       new s3n.SnsDestination(newImageTopic)
     );
-
 
     imagesBucket.addEventNotification( // delete from image event
       s3.EventType.OBJECT_REMOVED,
       new s3n.SnsDestination(delOrDescTopic) // i was calling the deleteImage lambda here for some reason... realised and fixed.
     );
 
+    // ### Initialize Event Sources ###
     const newImageEventSource = new events.SqsEventSource(imageProcessQueue, {
       batchSize: 5,
       maxBatchingWindow: cdk.Duration.seconds(10),
@@ -155,11 +152,9 @@ export class EDAAppStack extends cdk.Stack {
       maxBatchingWindow: cdk.Duration.seconds(10),
     });
 
-
-    newImageTopic.addSubscription(
-      new subs.SqsSubscription(imageProcessQueue, 
-      ),
-    );
+    // ### SNS Subscriptions ###
+    const lambdaSubProcess = new subs.SqsSubscription(imageProcessQueue);
+    newImageTopic.addSubscription(lambdaSubProcess);
 
     // intermediate queue is no longer a subscriber to topic
     // newImageTopic.addSubscription(
@@ -167,7 +162,7 @@ export class EDAAppStack extends cdk.Stack {
     //   );
     // instead, the lambda needs to be directly subscribed to the SNS topic
     // that can be done with the subs.LambdaSubscription(lambda_fn)
-    const lambdaSubMailer = new subs.LambdaSubscription(mailerFn)
+    const lambdaSubMailer = new subs.LambdaSubscription(mailerFn);
     newImageTopic.addSubscription(lambdaSubMailer);
 
     // classmate provided helpful youtube video to help figuring this out.
@@ -175,9 +170,11 @@ export class EDAAppStack extends cdk.Stack {
     const lambdaSubDelete = new subs.LambdaSubscription(deleteImageFn, {
       filterPolicyWithMessageBody: {
         Records: sns.FilterOrPolicy.policy({ // ref: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_sns.FilterOrPolicy.html
-          eventName: sns.FilterOrPolicy.filter(sns.SubscriptionFilter.stringFilter({
-            matchPrefixes: ['ObjectRemoved'] // ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-how-to-event-types-and-destinations.html
-          }))
+          eventName: sns.FilterOrPolicy.filter(
+            sns.SubscriptionFilter.stringFilter({
+              matchPrefixes: ['ObjectRemoved'] // ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-how-to-event-types-and-destinations.html
+            })
+          )
         })
       }
     }); // subscribe process delete to new topic
@@ -195,21 +192,18 @@ export class EDAAppStack extends cdk.Stack {
     delOrDescTopic.addSubscription(lambdaSubDelete); 
     delOrDescTopic.addSubscription(lambdaSubUpdate); // subscribe update table to new topic
 
+    // ### Lambda add event sources ###
     processImageFn.addEventSource(newImageEventSource);
-
-    //mailerFn.addEventSource(newImageMailEventSource);
-
+    //mailerFn.addEventSource(newImageMailEventSource); // no longer needed
     rejectionMailerFn.addEventSource(rejectionMailerEventSource);
 
-    // Permissions
-
+    // ### Permissions ###
     imagesBucket.grantRead(processImageFn);
     imageTable.grantReadWriteData(processImageFn);
     imageTable.grantReadWriteData(deleteImageFn); // give delete function write perms
     imageTable.grantReadWriteData(updateTableFn);
 
-    // Policy roles
-
+    // ### Policy role ###
     mailerFn.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
@@ -234,8 +228,7 @@ export class EDAAppStack extends cdk.Stack {
       })
     );
 
-    // Output
-    
+    // ### Output ###
     new cdk.CfnOutput(this, "bucketName", {
       value: imagesBucket.bucketName,
     });
@@ -245,7 +238,5 @@ export class EDAAppStack extends cdk.Stack {
       value: delOrDescTopic.topicArn,
       description: 'ARN of the SNS Topic',
     });
-
-
   }
 }
