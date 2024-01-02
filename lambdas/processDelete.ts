@@ -6,7 +6,7 @@ const ddbDocClient = createDDbDocClient();
 
 export const handler: SNSHandler = async (event: any) => {
   console.log("Event ", event);
-  for (const record of event.Records) {     //https://docs.aws.amazon.com/lambda/latest/dg/with-sns-example.html
+  for (const record of event.Records) {     // ref: https://docs.aws.amazon.com/lambda/latest/dg/with-sns-example.html
     console.log("Record ", record)
     const snsMessage = JSON.parse(record.Sns.Message);
 
@@ -30,7 +30,7 @@ export const handler: SNSHandler = async (event: any) => {
             }
           }
 
-          const delCommand = new DeleteCommand(dbParams); // got an error that key was missing ^ added to dbparams above
+          const delCommand = new DeleteCommand(dbParams); // got an error that key was missing ^ added to dbparams above (I was using Item instead)
 
           try {
             await ddbDocClient.send(delCommand);

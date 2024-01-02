@@ -130,13 +130,13 @@ export class EDAAppStack extends cdk.Stack {
 
     imagesBucket.addEventNotification(
       s3.EventType.OBJECT_CREATED,
-      new s3n.SnsDestination(newImageTopic)  // Changed
+      new s3n.SnsDestination(newImageTopic)
     );
 
 
     imagesBucket.addEventNotification( // delete from image event
       s3.EventType.OBJECT_REMOVED,
-      new s3n.LambdaDestination(deleteImageFn) // i had processImage instead
+      new s3n.SnsDestination(delOrDescTopic) // i was calling the deleteImage lambda here for some reason... realised and fixed.
     );
 
     const newImageEventSource = new events.SqsEventSource(imageProcessQueue, {
@@ -158,28 +158,8 @@ export class EDAAppStack extends cdk.Stack {
 
     newImageTopic.addSubscription(
       new subs.SqsSubscription(imageProcessQueue, 
-// i removed all this and suddenly the table writing works!
-
-        // {
-        // filterPolicy: {
-        //   imageType: sns.SubscriptionFilter.stringFilter({
-        //     allowlist: ['.jpeg', '.png'],
-        //   }),
-        // },
-      // }
       ),
     );
-
-    // routes images to dlq based on file extension
-    // newImageTopic.addSubscription(
-    //   new subs.SqsSubscription(deadLetterQ, {
-    //     filterPolicy: {
-    //       imageType: sns.SubscriptionFilter.stringFilter({
-    //         denylist: ['.jpeg', '.png'],
-    //       }),
-    //     },
-    //   }),
-    // );
 
     // intermediate queue is no longer a subscriber to topic
     // newImageTopic.addSubscription(
@@ -190,13 +170,15 @@ export class EDAAppStack extends cdk.Stack {
     const lambdaSubMailer = new subs.LambdaSubscription(mailerFn)
     newImageTopic.addSubscription(lambdaSubMailer);
 
+    // classmate provided helpful youtube video to help figuring this out.
+    // ref: https://www.youtube.com/watch?v=36iMOJQUAuE&start=217
     const lambdaSubDelete = new subs.LambdaSubscription(deleteImageFn, {
-      filterPolicy: {
-        comment_type: sns.SubscriptionFilter.stringFilter({
-          // specifying a message attribute which will be used in the publish command
-          // ref: https://docs.aws.amazon.com/cli/latest/reference/sns/publish.html
-          allowlist: ["delete"],
-        }),
+      filterPolicyWithMessageBody: {
+        Records: sns.FilterOrPolicy.policy({ // ref: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_sns.FilterOrPolicy.html
+          eventName: sns.FilterOrPolicy.filter(sns.SubscriptionFilter.stringFilter({
+            matchPrefixes: ['ObjectRemoved'] // ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-how-to-event-types-and-destinations.html
+          }))
+        })
       }
     }); // subscribe process delete to new topic
 
