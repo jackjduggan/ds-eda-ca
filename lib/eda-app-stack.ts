@@ -190,10 +190,28 @@ export class EDAAppStack extends cdk.Stack {
     const lambdaSubMailer = new subs.LambdaSubscription(mailerFn)
     newImageTopic.addSubscription(lambdaSubMailer);
 
-    const lambdaSubDelete = new subs.LambdaSubscription(deleteImageFn); // subscribe process delete to new topic
-    const lambdaSubUpdate = new subs.LambdaSubscription(updateTableFn); // subscribe update table to new topic
-    delOrDescTopic.addSubscription(lambdaSubDelete);
-    delOrDescTopic.addSubscription(lambdaSubUpdate);
+    const lambdaSubDelete = new subs.LambdaSubscription(deleteImageFn, {
+      filterPolicy: {
+        comment_type: sns.SubscriptionFilter.stringFilter({
+          // specifying a message attribute which will be used in the publish command
+          // ref: https://docs.aws.amazon.com/cli/latest/reference/sns/publish.html
+          allowlist: ["delete"],
+        }),
+      }
+    }); // subscribe process delete to new topic
+
+    const lambdaSubUpdate = new subs.LambdaSubscription(updateTableFn, {
+      filterPolicy: {
+        comment_type: sns.SubscriptionFilter.stringFilter({
+          // specifying a message attribute which will be used in the publish command
+          // ref: https://docs.aws.amazon.com/cli/latest/reference/sns/publish.html
+          allowlist: ["update"], 
+        }),
+      }
+    });
+
+    delOrDescTopic.addSubscription(lambdaSubDelete); 
+    delOrDescTopic.addSubscription(lambdaSubUpdate); // subscribe update table to new topic
 
     processImageFn.addEventSource(newImageEventSource);
 
@@ -238,6 +256,12 @@ export class EDAAppStack extends cdk.Stack {
     
     new cdk.CfnOutput(this, "bucketName", {
       value: imagesBucket.bucketName,
+    });
+
+    // output the SNS topic ARN so I don't have to go into AWS and get it myself every time.
+    new cdk.CfnOutput(this, 'TopicArn', {
+      value: delOrDescTopic.topicArn,
+      description: 'ARN of the SNS Topic',
     });
 
 
