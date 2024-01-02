@@ -2,38 +2,30 @@
 
 __Name:__ ....Jack Duggan.....
 
-__YouTube Demo link__ - [The URL of your demonstration of the app.]
+__YouTube Demo link__ - (https://youtu.be/LAWkYwEkpts)
 
 [ Note: The video must include an audio.]
 
-### Phase 1.
-
-[ List the Lambda functions in this phase's architecture and state their working status.]
+### Phase 1 (Complete)
 
 + Confirmation Mailer - Fully implemented.
 + Rejection Mailer - Fully implemented.
 + Process Image - Fully implemented.
 
-### Phase 2 (if relevant).
+### Phase 2 (Complete)
 
-[ List the Lambda functions in this phase's architecture and state their working status.]
++ Confirmation Mailer - Fully implemented.
++ Rejection Mailer - Fully implemented.
++ Process Image - Fully implemented
++ Process Delete - Fully implemented.
++ Update Table - Fully implemented.
 
- e.g.
+### Phase 3 (Incomplete)
 
-+ Confirmation Mailer - Not implemented.
-+ Rejection Mailer - Not implemented.
-+ Process Image - Not implemented
-+ Process Delete - Not implemented.
-+ Update Table - Not implemented.
++ Confirmation Mailer - Fully implemented.
++ Rejection Mailer - Fully implemented.
++ Process Image - Fully implemented
++ Singular Topic - Not implemented, still two topics
++ Delete/Add - Not Implemented
++ Mailer Merge - Not Implemented
 
-### Phase 3 (if relevant).
-
-[ List the Lambda functions in this phase's architecture and state their working status.]
-
- e.g.
-
-+ Confirmation Mailer - Not implemented.
-+ Rejection Mailer - Not implemented.
-+ Process Image - Not implemented
-+ etc
-+ etc
