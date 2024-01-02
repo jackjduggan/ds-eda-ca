@@ -19,3 +19,13 @@ __YouTube Demo link__ - (https://youtu.be/LAWkYwEkpts)
 + Process Image - Fully implemented
 + Process Delete - Fully implemented.
 + Update Table - Fully implemented.
+
+### Phase 3 (Incomplete)
+
++ Confirmation Mailer - Fully implemented.
++ Rejection Mailer - Fully implemented.
++ Process Image - Fully implemented
++ Singular Topic - Not implemented, still two topics
++ Delete/Add - Not Implemented
++ Mailer Merge - Not Implemented
+
